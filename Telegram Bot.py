@@ -78,7 +78,7 @@ class ReviewoBot:
         response_df.to_excel("filtered_reviews.xlsx", index=False)
         with open("filtered_reviews.xlsx", "rb") as reponse_file:
             context.bot.send_document(chat_id, reponse_file)
-        self.thank_user()
+        self.thank_user(update)
 
     # Use Machine Learning Model to conduct CSA
     def retrieve_predictions(self, update, context):
@@ -89,7 +89,7 @@ class ReviewoBot:
         response_df.to_excel("predicted_reviews.xlsx", index=False)
         with open("predicted_reviews.xlsx", "rb") as reponse_file:
             context.bot.send_document(chat_id, reponse_file)
-        self.thank_user()
+        self.thank_user(update)
 
     # Use Machine Learning Model to compile top five words used with the number of times each word is used in reviews 
     # for both positive and negative reviews
@@ -106,12 +106,26 @@ class ReviewoBot:
             response += "\n\n"
 
         update.message.reply_text(response)
-        self.thank_user()
+        self.thank_user(update)
+
+    # Updates message after successful download of file 
+    def choose_catgeory(self, update):
+        response = ("Please choose your product category? \n\n" + 
+                    "/general")
+        update.message.reply_text(response)
+
+    # Initiates model for general product category 
+    def general(self, update, context):
+        self.wait(update)
+        self.model = Distilbert(self.document_path)
+        self.choose_function(update)
 
     # Allows user to choose function
     def choose_function(self, update):
         response = ("What do you wish to do with the reviews. \n\n" + 
-                    "/filter_fake_reviews")
+                    "/filter_fake_reviews\n" +
+                    "/conduct_CSA\n" +
+                    "/compile_top_five_words")
         update.message.reply_text(response)
     
     # Waiting message
@@ -141,7 +155,6 @@ class ReviewoBot:
                 response = "File received! Thank you for waiting patiently!"
                 update.message.reply_text(response)
                 self.choose_function(update)
-                self.model = Distilbert(self.document_path)
                 
             except FileNotFoundError:
                 response = "File not received. Please try again!"
@@ -152,8 +165,7 @@ class ReviewoBot:
                 self.document_path = os.path.dirname(__file__) + '/' + "Reviews.xlsx"
                 response = "File received! Thank you for waiting patiently!"
                 update.message.reply_text(response)
-                self.choose_function(update)
-                self.model = Distilbert(self.document_path)
+                self.choose_catgeory(update)
                 
             except FileNotFoundError:
                 response = "File not received. Please try again!"
@@ -193,6 +205,7 @@ def main():
     dp.add_handler(CommandHandler("use_new_reviews", reviewo_bot.use_new_reviews))
     dp.add_handler(CommandHandler("conduct_CSA", reviewo_bot.retrieve_predictions))
     dp.add_handler(CommandHandler("compile_top_five_words", reviewo_bot.compile_top_five_words))
+    dp.add_handler(CommandHandler("general", reviewo_bot.general))
 
 
     # Add Messahe Handlers
