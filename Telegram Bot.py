@@ -80,6 +80,17 @@ class ReviewoBot:
             context.bot.send_document(chat_id, reponse_file)
         self.thank_user()
 
+    # Use Machine Learning Model to conduct CSA
+    def retrieve_predictions(self, update, context):
+        self.wait(update)
+        chat_id = update.message.chat_id
+        response_df, new_model = self.model.conduct_CSA()
+        self.model = new_model
+        response_df.to_excel("predicted_reviews.xlsx", index=False)
+        with open("predicted_reviews.xlsx", "rb") as reponse_file:
+            context.bot.send_document(chat_id, reponse_file)
+        self.thank_user()
+
     # Allows user to choose function
     def choose_function(self, update):
         response = ("What do you wish to do with the reviews. \n\n" + 
