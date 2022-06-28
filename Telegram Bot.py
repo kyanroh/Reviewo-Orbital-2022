@@ -1,70 +1,14 @@
-# import everything
+# Import everything
 import requests
 import logging
-from Credentials import BOT_TOKEN, DOCUMENT_PATH 
+from Credentials import BOT_TOKEN
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
-from MachineLearningModel import MLModel
+from DistilBERT_Model import Distilbert
+import os
 
 
-# Enable logging
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                    level=logging.INFO)
-
-logger = logging.getLogger(__name__)
-
-
-# Command Handlers
-# Sends welcome message
-def start(update, context):
-    response = ("Welcome to ReviewO! Thanks for using our service!\n\n" + 
-                "Please send the input files for Customer Sentiment Analysis in a CSV file\n\n\n" + 
-                "/about\n" + 
-                "/help")
-    update.message.reply_text(response)
-
-
-# Explains what ReviewO does
-def about(update, context):
-    response = ("Spending too much time on shopping? Or spending too much time on looking at the reviews to improve your products? " + 
-                "At ReviewO, we hope buyers and sellers can automate the process of discovering emotions in reviews " + 
-                "so that they can save their time to make faster informed decisions.")
-    update.message.reply_text(response)
-
-
-# Explains instructions for user
-def help(update, context):
-    response = ("This bot utilises Customer Sentiment Analysis to automate the process of discovering emotions in reviews. " +  
-                "You will receive the top 5 words within reviews classified under both good and bad. " +
-                "Additionally, the bot can help to filter fake or bot-written reviews and return the file in a .xlsx format. " +  
-                "This will provide a quick and accurate overview of the general customer’s sentiments towards a particular product. \n\n" + 
-                "You may send the input files for Customer Sentiment Analysis in a .csv or .xlsx file if you have not done so!")
-    update.message.reply_text(response)
-
-
-# Use Machine Learning Model to filter
-def filter(update, context):
-    mlModel = MLModel(DOCUMENT_PATH)
-    response = mlModel.filter()
-    update.message.reply_text(response)
-
-
-# Use Machine Learning Model to conduct CSA
-def conductCSA(update, context):
-    mlModel = MLModel(DOCUMENT_PATH)
-    response = mlModel.conductCSA()
-    update.message.reply_text(response)
-
-
-# Use Machine Learning Model to compile top five words used with the number of times each word is used in reviews 
-# for both positive and negative reviews
-def compileTopFiveWords(update, context):
-    mlModel = MLModel(DOCUMENT_PATH)
-    response = mlModel.compileTopFiveWords()
-    update.message.reply_text(response)
-
-
-# Downloads document
-def downloadDocument(document):
+# Downloads xlsx document
+def download_xlsx(document):
     file_path = document["file_path"]
     response = requests.get(url=file_path)
     if response.status_code != 200:
@@ -73,32 +17,94 @@ def downloadDocument(document):
         document.write(response.content)
 
 
+# Downloads csv document
+def download_csv(document):
+    file_path = document["file_path"]
+    response = requests.get(url=file_path)
+    if response.status_code != 200:
+        raise FileNotFoundError()
+    with open("Reviews.csv", 'wb') as document:
+        document.write(response.content)
+
+
 # Check if document is in .CSV/.XLSX
-def isCsvOrXlsx(document): 
-    return document["file_path"].lower().endswith(('csv', 'xlsx'))
+def is_csv(document): 
+    return document["file_path"].lower().endswith(('csv'))
 
 
-# Handles all document inputs
-def documentHandler(update, context):
-    document = context.bot.get_file(update.message.document)
-    if isCsvOrXlsx(document):
-        try:
-            downloadDocument(document)
-            response = "File Received! Please wait..."
-            update.message.reply_text(response)
-            
-            response = ("Thank you for waiting patiently!\n" + 
-                        "What do you wish to do with the reviews? \n\n" + 
-                        "/filter\n" +
-                        "/conductCSA\n" +
-                        "/compileTopFiveWords")
-            update.message.reply_text(response)
-        except FileNotFoundError:
-            response = "File not received. Please try again!"
-            update.message.reply_text(response)
-    else:
-        response = "File not received. Please ensure that the file is in .csv or .xlsx!"
+# Check if document is in .CSV/.XLSX
+def is_xlsx(document): 
+    return document["file_path"].lower().endswith(('xlsx'))
+
+
+class ReviewoBot:
+    def __init__(self):
+        self.model = None
+        self.document_path = ""
+    
+    # Command Handlers
+    # Sends welcome message
+    def start(self, update, context):
+        response = ("Welcome to ReviewO! Thanks for using our service!\n\n" + 
+                    "Please send the input files for Customer Sentiment Analysis in a CSV or XLSX file\n\n" + 
+                    "/about\n" + 
+                    "/help")
         update.message.reply_text(response)
+
+
+    # Explains what ReviewO does
+    def about(self, update, context):
+        response = ("Spending too much time on shopping? Or spending too much time on looking at the reviews to improve your products? " + 
+                    "At ReviewO, we hope buyers and sellers can automate the process of discovering emotions in reviews " + 
+                    "so that they can save their time to make faster informed decisions.")
+        update.message.reply_text(response)
+
+
+    # Explains instructions for user
+    def help(self, update, context):
+        response = ("This bot utilises Customer Sentiment Analysis to automate the process of discovering emotions in reviews. " +  
+                    "You will receive the top 5 words within reviews classified under both good and bad. " +
+                    "Additionally, the bot can help to filter fake or bot-written reviews and return the file in a .xlsx format. " +  
+                    "This will provide a quick and accurate overview of the general customer’s sentiments towards a particular product. \n\n" + 
+                    "You may send the input files for Customer Sentiment Analysis in a .csv or .xlsx file if you have not done so!")
+        update.message.reply_text(response)
+
+    
+
+    # Handles all document inputs
+    def handle_document(self, update, context):
+        document = context.bot.get_file(update.message.document)
+        self.wait(update)
+        if is_csv(document):
+            try:
+                download_csv(document)
+                self.document_path = os.path.dirname(__file__) + '/' + "Reviews.csv"
+                response = "File received! Thank you for waiting patiently!"
+                update.message.reply_text(response)
+                self.choose_catgeory(update)
+            except FileNotFoundError:
+                response = "File not received. Please try again!"
+                update.message.reply_text(response)
+        elif is_xlsx(document):
+            try:
+                download_xlsx(document)
+                self.document_path = os.path.dirname(__file__) + '/' + "Reviews.xlsx"
+                response = "File received! Thank you for waiting patiently!"
+                update.message.reply_text(response)
+                self.choose_catgeory(update)
+            except FileNotFoundError:
+                response = "File not received. Please try again!"
+                update.message.reply_text(response)
+        else:
+            response = "File not received. Please ensure that the file is in .csv or .xlsx!"
+            update.message.reply_text(response)
+
+
+# Enable logging
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                    level=logging.INFO)
+
+logger = logging.getLogger(__name__)
 
 
 # Log Errors caused by updates
@@ -113,16 +119,17 @@ def main():
     # Get the dispatcher to register handlers
     dp = updater.dispatcher
 
+    #Create ReviewoBot object
+    reviewo_bot = ReviewoBot()
+
     # Add Command Handlers
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(CommandHandler("about", about))
-    dp.add_handler(CommandHandler("help", help))
-    dp.add_handler(CommandHandler("filter", filter))
-    dp.add_handler(CommandHandler("conductCSA", conductCSA))
-    dp.add_handler(CommandHandler("compileTopFiveWords", compileTopFiveWords))
+    dp.add_handler(CommandHandler("start", reviewo_bot.start))
+    dp.add_handler(CommandHandler("about", reviewo_bot.about))
+    dp.add_handler(CommandHandler("help", reviewo_bot.help))
+
 
     # Add Messahe Handlers
-    dp.add_handler(MessageHandler(Filters.document, documentHandler)) # Listens to documents
+    dp.add_handler(MessageHandler(Filters.document, reviewo_bot.handle_document)) # Listens to documents
 
     # Log all errors
     dp.add_error_handler(error)
