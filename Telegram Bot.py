@@ -69,7 +69,38 @@ class ReviewoBot:
                     "You may send the input files for Customer Sentiment Analysis in a .csv or .xlsx file if you have not done so!")
         update.message.reply_text(response)
 
+    # Use Machine Learning Model to filter
+    def filter(self, update, context):
+        self.wait(update)
+        chat_id = update.message.chat_id
+        response_df, new_model = self.model.filter()
+        self.model = new_model
+        response_df.to_excel("filtered_reviews.xlsx", index=False)
+        with open("filtered_reviews.xlsx", "rb") as reponse_file:
+            context.bot.send_document(chat_id, reponse_file)
+        self.thank_user()
+
+    # Allows user to choose function
+    def choose_function(self, update):
+        response = ("What do you wish to do with the reviews. \n\n" + 
+                    "/filter_fake_reviews")
+        update.message.reply_text(response)
     
+    # Waiting message
+    def wait(self, update):
+        response = "Please wait..."
+        update.message.reply_text(response)
+
+    # Thank user
+    def thank_user(self, update):
+        response = ("Thank you for using ReviewO bot.\n\n" + 
+                    "/use_new_reviews")
+        update.message.reply_text(response)
+
+    # Prompt user to send new set of reviews 
+    def use_new_reviews(self, update):
+        response = "PLease send the new set of reviews"
+        update.message.reply_text(response)
 
     # Handles all document inputs
     def handle_document(self, update, context):
@@ -81,7 +112,9 @@ class ReviewoBot:
                 self.document_path = os.path.dirname(__file__) + '/' + "Reviews.csv"
                 response = "File received! Thank you for waiting patiently!"
                 update.message.reply_text(response)
-                self.choose_catgeory(update)
+                self.choose_function(update)
+                self.model = Distilbert(self.document_path)
+                
             except FileNotFoundError:
                 response = "File not received. Please try again!"
                 update.message.reply_text(response)
@@ -91,7 +124,9 @@ class ReviewoBot:
                 self.document_path = os.path.dirname(__file__) + '/' + "Reviews.xlsx"
                 response = "File received! Thank you for waiting patiently!"
                 update.message.reply_text(response)
-                self.choose_catgeory(update)
+                self.choose_function(update)
+                self.model = Distilbert(self.document_path)
+                
             except FileNotFoundError:
                 response = "File not received. Please try again!"
                 update.message.reply_text(response)
@@ -126,6 +161,9 @@ def main():
     dp.add_handler(CommandHandler("start", reviewo_bot.start))
     dp.add_handler(CommandHandler("about", reviewo_bot.about))
     dp.add_handler(CommandHandler("help", reviewo_bot.help))
+    dp.add_handler(CommandHandler("filter_fake_reviews", reviewo_bot.filter))
+    dp.add_handler(CommandHandler("use_new_reviews", reviewo_bot.use_new_reviews))
+
 
 
     # Add Messahe Handlers
