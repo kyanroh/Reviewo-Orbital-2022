@@ -91,6 +91,23 @@ class ReviewoBot:
             context.bot.send_document(chat_id, reponse_file)
         self.thank_user()
 
+    # Use Machine Learning Model to compile top five words used with the number of times each word is used in reviews 
+    # for both positive and negative reviews
+    def compile_top_five_words(self, update, context):
+        self.wait(update)
+        response = ""
+        response_dict, new_model = self.model.compile_top_five_words()
+        self.model = new_model
+        response = ""
+        for sentiment, words in response_dict.items():
+            response += (sentiment + "\n\n") 
+            for word in words:
+                response += (word + "\n")
+            response += "\n\n"
+
+        update.message.reply_text(response)
+        self.thank_user()
+
     # Allows user to choose function
     def choose_function(self, update):
         response = ("What do you wish to do with the reviews. \n\n" + 
@@ -174,7 +191,8 @@ def main():
     dp.add_handler(CommandHandler("help", reviewo_bot.help))
     dp.add_handler(CommandHandler("filter_fake_reviews", reviewo_bot.filter))
     dp.add_handler(CommandHandler("use_new_reviews", reviewo_bot.use_new_reviews))
-
+    dp.add_handler(CommandHandler("conduct_CSA", reviewo_bot.retrieve_predictions))
+    dp.add_handler(CommandHandler("compile_top_five_words", reviewo_bot.compile_top_five_words))
 
 
     # Add Messahe Handlers
