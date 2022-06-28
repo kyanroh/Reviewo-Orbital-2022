@@ -90,4 +90,39 @@ class Distilbert:
         bad_reviews = predicted_reviews[predicted_reviews["Predictions"] == "Negative"]
         return good_reviews, bad_reviews
     
+    # Compile top five words of predicted reviews
+    def compile_top_five_words(self):
+        if len(self.top_five_words) == 0 :
+            if len(self.predictions) == 0:
+                self.conduct_CSA()
+            good_reviews, bad_reviews = self.sort_predicted_reviews(self.corpus_predictions.copy())
+            
+            # Combine all reviews into a single list and split into indiv words
+            good_reviews = good_reviews["Reviews"].str.cat(sep=' ')
+            good_reviews = good_reviews.split()
+            bad_reviews = bad_reviews["Reviews"].str.cat(sep=' ')
+            bad_reviews = bad_reviews.split()
+
+            good_reviews_dist = FreqDist(good_reviews)
+            bad_reviews_dist = FreqDist(bad_reviews)
+            five_good_words = good_reviews_dist.most_common(5)
+            five_bad_words = bad_reviews_dist.most_common(5)
+
+            good_bad_dict = {}
+            for word_dist in five_good_words:
+                if "Positive" not in good_bad_dict.keys():
+                    good_bad_dict["Positive"] = [word_dist[0]]
+                else:
+                    good_bad_dict["Positive"].append(word_dist[0])
+
+            for word_dist in five_bad_words:
+                if "Negative" not in good_bad_dict.keys():
+                    good_bad_dict["Negative"] = [word_dist[0]]
+                else:
+                    good_bad_dict["Negative"].append(word_dist[0])
+
+            self.top_five_words = good_bad_dict
+            return good_bad_dict, self
+        else:
+            return self.top_five_words, self
 
