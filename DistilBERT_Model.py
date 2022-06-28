@@ -18,5 +18,11 @@ class Distilbert:
         self.top_five_words = {}
         self.corpus_predictions = pd.DataFrame()
 
+    # Remove fake bot reviews
+    def filter(self):
+        filtered_reviews = self.reviews.copy()
+        filtered_reviews.drop_duplicates(subset ="Reviews",keep = False, inplace = True)
+        return filtered_reviews, self
+
     
 
