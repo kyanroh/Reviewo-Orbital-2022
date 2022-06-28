@@ -195,7 +195,6 @@ def main():
     dp.add_handler(CommandHandler("compile_top_five_words", reviewo_bot.compile_top_five_words))
 
 
-
     # Add Messahe Handlers
     dp.add_handler(MessageHandler(Filters.document, reviewo_bot.handle_document)) # Listens to documents
 

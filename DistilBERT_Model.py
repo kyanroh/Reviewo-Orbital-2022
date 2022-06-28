@@ -125,4 +125,3 @@ class Distilbert:
             return good_bad_dict, self
         else:
             return self.top_five_words, self
-
