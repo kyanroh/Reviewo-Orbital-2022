@@ -136,7 +136,9 @@ class ReviewoBot:
     # Thank user
     def thank_user(self, update):
         response = ("Thank you for using ReviewO bot.\n\n" + 
-                    "/use_new_reviews\n" + 
+                    "Use a new set of reviews:\n" + 
+                    "/use_new_reviews\n\n" + 
+                    "Use current set of reviews:\n"
                     "/filter_fake_reviews\n" +
                     "/conduct_CSA\n" +
                     "/compile_top_five_words")
