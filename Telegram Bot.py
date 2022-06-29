@@ -136,12 +136,15 @@ class ReviewoBot:
     # Thank user
     def thank_user(self, update):
         response = ("Thank you for using ReviewO bot.\n\n" + 
-                    "/use_new_reviews")
+                    "/use_new_reviews\n" + 
+                    "/filter_fake_reviews\n" +
+                    "/conduct_CSA\n" +
+                    "/compile_top_five_words")
         update.message.reply_text(response)
 
     # Prompt user to send new set of reviews 
-    def use_new_reviews(self, update):
-        response = "PLease send the new set of reviews"
+    def use_new_reviews(self, update, context):
+        response = "Please send the new set of reviews"
         update.message.reply_text(response)
 
     # Handles all document inputs
