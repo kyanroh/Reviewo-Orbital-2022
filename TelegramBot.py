@@ -5,7 +5,7 @@ from Credentials import BOT_TOKEN
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 from DistilBERT_Model import Distilbert
 import os
-
+import pandas as pd
 
 # Downloads xlsx document
 def download_xlsx(document):
@@ -91,6 +91,23 @@ class ReviewoBot:
             context.bot.send_document(chat_id, reponse_file)
         self.thank_user(update)
 
+    # Sort predicted reviews into good and bad
+    def sort_predicted(self, update, context):
+        predicted_reviews = self.model.get_predicted_reviews()
+        if not self.model.has_predicted():
+            predicted_reviews, new_model = self.model.conduct_CSA()
+            self.model = new_model
+        self.wait(update)
+        chat_id = update.message.chat_id
+        good_reviews, bad_reviews = self.model.sort_predicted_reviews(predicted_reviews)
+        good_reviews.to_excel("good_reviews.xlsx", index=False)
+        bad_reviews.to_excel("bad_reviews.xlsx", index=False)
+        with open("good_reviews.xlsx", "rb") as reponse_file:
+            context.bot.send_document(chat_id, reponse_file)
+        with open("bad_reviews.xlsx", "rb") as reponse_file:
+            context.bot.send_document(chat_id, reponse_file)
+        self.thank_user(update)
+
     # Use Machine Learning Model to compile top five words used with the number of times each word is used in reviews 
     # for both positive and negative reviews
     def compile_top_five_words(self, update, context):
@@ -100,7 +117,7 @@ class ReviewoBot:
         self.model = new_model
         response = ""
         for sentiment, words in response_dict.items():
-            response += (sentiment + "\n\n") 
+            response += (sentiment + ":\n\n") 
             for word in words:
                 response += (word + "\n")
             response += "\n\n"
@@ -110,7 +127,7 @@ class ReviewoBot:
 
     # Updates message after successful download of file 
     def choose_catgeory(self, update):
-        response = ("Please choose your product category? \n\n" + 
+        response = ("Please choose your product category: \n\n" + 
                     "/general")
         update.message.reply_text(response)
 
@@ -122,9 +139,10 @@ class ReviewoBot:
 
     # Allows user to choose function
     def choose_function(self, update):
-        response = ("What do you wish to do with the reviews. \n\n" + 
+        response = ("What do you wish to do with the reviews? \n\n" + 
                     "/filter_fake_reviews\n" +
-                    "/conduct_CSA\n" +
+                    "/retrieve_predictions\n" +
+                    "/sort_predicted_reviews\n" +
                     "/compile_top_five_words")
         update.message.reply_text(response)
     
@@ -140,7 +158,8 @@ class ReviewoBot:
                     "/use_new_reviews\n\n" + 
                     "Use current set of reviews:\n"
                     "/filter_fake_reviews\n" +
-                    "/conduct_CSA\n" +
+                    "/retrieve_predictions\n" +
+                    "/sort_predicted_reviews\n" +
                     "/compile_top_five_words")
         update.message.reply_text(response)
 
@@ -149,6 +168,15 @@ class ReviewoBot:
         response = "Please send the new set of reviews"
         update.message.reply_text(response)
 
+    # Check if downloaded document is in correct format
+    def is_correct_format(self, document):
+        if is_csv(document):
+            df = pd.read_csv(self.document_path)
+            return "Reviews" in df.columns.to_list()
+        else:
+            df = pd.read_excel(self.document_path)
+            return "Reviews" in df.columns.to_list()
+            
     # Handles all document inputs
     def handle_document(self, update, context):
         document = context.bot.get_file(update.message.document)
@@ -157,9 +185,13 @@ class ReviewoBot:
             try:
                 download_csv(document)
                 self.document_path = os.path.dirname(__file__) + '/' + "Reviews.csv"
-                response = "File received! Thank you for waiting patiently!"
-                update.message.reply_text(response)
-                self.choose_function(update)
+                if self.is_correct_format(document):
+                    response = "File received! Thank you for waiting patiently!"
+                    update.message.reply_text(response)
+                    self.choose_catgeory(update)
+                else:
+                    response = "File is not in correct format! Please make sure that the file has a column name 'Reviews' !"
+                    update.message.reply_text(response)
                 
             except FileNotFoundError:
                 response = "File not received. Please try again!"
@@ -168,9 +200,13 @@ class ReviewoBot:
             try:
                 download_xlsx(document)
                 self.document_path = os.path.dirname(__file__) + '/' + "Reviews.xlsx"
-                response = "File received! Thank you for waiting patiently!"
-                update.message.reply_text(response)
-                self.choose_catgeory(update)
+                if self.is_correct_format(document):
+                    response = "File received! Thank you for waiting patiently!"
+                    update.message.reply_text(response)
+                    self.choose_catgeory(update)
+                else:
+                    response = "File is not in correct format! Please make sure that the file has a column name 'Reviews' !"
+                    update.message.reply_text(response)
                 
             except FileNotFoundError:
                 response = "File not received. Please try again!"
@@ -208,7 +244,8 @@ def main():
     dp.add_handler(CommandHandler("help", reviewo_bot.help))
     dp.add_handler(CommandHandler("filter_fake_reviews", reviewo_bot.filter))
     dp.add_handler(CommandHandler("use_new_reviews", reviewo_bot.use_new_reviews))
-    dp.add_handler(CommandHandler("conduct_CSA", reviewo_bot.retrieve_predictions))
+    dp.add_handler(CommandHandler("retrieve_predictions", reviewo_bot.retrieve_predictions))
+    dp.add_handler(CommandHandler("sort_predicted_reviews", reviewo_bot.sort_predicted))
     dp.add_handler(CommandHandler("compile_top_five_words", reviewo_bot.compile_top_five_words))
     dp.add_handler(CommandHandler("general", reviewo_bot.general))
 
