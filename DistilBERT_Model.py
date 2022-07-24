@@ -5,7 +5,6 @@ from transformers import TFDistilBertForSequenceClassification
 from transformers import DistilBertTokenizerFast
 import tensorflow as tf
 import re
-import torch
 from nltk.corpus import stopwords
 from nltk.stem.porter import PorterStemmer
 from nltk.probability import FreqDist
@@ -13,12 +12,14 @@ from nltk.probability import FreqDist
 
 
 class Distilbert:
-    def __init__(self, DOCUMENT_PATH):
+    def __init__(self, url):
         try:
-            self.reviews = pd.read_csv(DOCUMENT_PATH)
-        except UnicodeDecodeError:
-            self.reviews = pd.read_excel(DOCUMENT_PATH)
-        self.model = TFDistilBertForSequenceClassification.from_pretrained(os.path.dirname(__file__) + '/' + "trained models/distilbert_classifier", from_pt=True)
+            self.reviews = pd.read_csv(url)
+        except Exception as e:
+            print(e)
+            self.reviews = pd.read_excel(url)
+        #self.model = TFDistilBertForSequenceClassification.from_pretrained(os.path.dirname(__file__) + '/' + "trained models/distilbert_classifier/3_epoch", from_pt=True)
+        self.model = TFDistilBertForSequenceClassification.from_pretrained(os.path.dirname(__file__) + '/' + "../" + "trained models/distilbert_classifier/3_epoch", from_pt=True)
         self.tokeniser = DistilBertTokenizerFast.from_pretrained('distilbert-base-uncased')
         self.predictions = pd.DataFrame()
         self.top_five_words = {}
@@ -70,10 +71,18 @@ class Distilbert:
     def save_predictions(self, predicted_reviews):
         self.predictions = predicted_reviews
 
+    # Check if predictions are done 
+    def has_predicted(self):
+        return len(self.predictions) != 0
+
+    # Get predicted reviews
+    def get_predicted_reviews(self):
+        return self.predictions.copy()
+
     # Conduct sentiment analysis on reviews passed in to initialise model object
     def conduct_CSA(self):
-        if len(self.predictions) != 0:
-            return self.predictions, self
+        if self.has_predicted():
+            return self.get_predicted_reviews(), self
         else:
             corpus = self.get_corpus(self.reviews.copy())
             predictions = []
@@ -93,7 +102,7 @@ class Distilbert:
     # Compile top five words of predicted reviews
     def compile_top_five_words(self):
         if len(self.top_five_words) == 0 :
-            if len(self.predictions) == 0:
+            if not self.has_predicted():
                 self.conduct_CSA()
             good_reviews, bad_reviews = self.sort_predicted_reviews(self.corpus_predictions.copy())
             
