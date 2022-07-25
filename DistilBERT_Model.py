@@ -12,14 +12,33 @@ from nltk.probability import FreqDist
 
 
 class Distilbert:
-    def __init__(self, url):
+    def __init__(self, url, category):
         try:
             self.reviews = pd.read_csv(url)
         except Exception as e:
             print(e)
             self.reviews = pd.read_excel(url)
-        #self.model = TFDistilBertForSequenceClassification.from_pretrained(os.path.dirname(__file__) + '/' + "trained models/distilbert_classifier/3_epoch", from_pt=True)
-        self.model = TFDistilBertForSequenceClassification.from_pretrained(os.path.dirname(__file__) + '/' + "../" + "trained models/distilbert_classifier/3_epoch", from_pt=True)
+        #self.model = TFDistilBertForSequenceClassification.from_pretrained(os.path.dirname(__file__) + '/' + "trained models/distilbert_classifier/general/3_epoch", from_pt=True)
+        if category == "general":
+            print("Loading model for general category...")
+            self.model = TFDistilBertForSequenceClassification.from_pretrained(os.path.dirname(__file__) + '/' + "../" + "trained models/distilbert_classifier/general/3_epoch", from_pt=True)
+            self.category = category
+        elif category == "books":
+            print("Loading model for books category...")
+            self.model = TFDistilBertForSequenceClassification.from_pretrained(os.path.dirname(__file__) + '/' + "../" + "trained models/distilbert_classifier/books/8_epoch", from_pt=True)
+            self.category = category
+        elif category == "electronics":
+            print("Loading model for electronics category...")
+            self.model =  TFDistilBertForSequenceClassification.from_pretrained(os.path.dirname(__file__) + '/' + "../" + "trained models/distilbert_classifier/electronics/8_epoch", from_pt=True)
+            self.category = category
+        elif category == "food":
+            print("Loading model for food category...")
+            self.model =  TFDistilBertForSequenceClassification.from_pretrained(os.path.dirname(__file__) + '/' + "../" + "trained models/distilbert_classifier/food/8_epoch", from_pt=True)
+            self.category = category
+        else:
+            print("No suitable category available!")
+            self.model = None
+            self.category = None
         self.tokeniser = DistilBertTokenizerFast.from_pretrained('distilbert-base-uncased')
         self.predictions = pd.DataFrame()
         self.top_five_words = {}

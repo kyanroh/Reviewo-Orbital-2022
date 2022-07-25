@@ -1,5 +1,4 @@
 from DistilBERT_Model import Distilbert
-import os
 import requests
 import pandas as pd
 from database import storage
@@ -31,8 +30,6 @@ def upload_csv(document, username):
     response = requests.get(url=file_path)
     if response.status_code != 200:
         raise FileNotFoundError()
-    # print(type(response.content))
-    # print(response.content)
     try:
         cloud_file_name = f"{username}/Reviews.csv"
         storage.child(cloud_file_name).put(response.content)
@@ -53,16 +50,11 @@ def is_xlsx(document):
 class ReviewoBot:
     def __init__(self):
         self.models = {}
-        self.document_path = ""
     
-    def is_logged_in(self, update, context):
+    # Check log in status
+    def is_logged_in(self, update):
         chat_id = update.message.chat_id
-        if chat_id not in current_users.keys():
-            response = "You are currently not logged in, please log in! \n\n/login"
-            update.message.reply_text(response)
-            return False
-        else:
-            return True
+        return chat_id in current_users.keys()
 
     # Command Handlers
     # Sends welcome message
@@ -73,11 +65,6 @@ class ReviewoBot:
                     "/about\n" + 
                     "/help")
         update.message.reply_text(response)
-
-    # def welcome(self, update, context):
-    #     response = "Please send the input files for Customer Sentiment Analysis in a CSV or XLSX file"
-    #     update.message.reply_text(response)
-
 
     # Explains what ReviewO does
     def about(self, update, context):
@@ -99,89 +86,162 @@ class ReviewoBot:
 
     # Use Machine Learning Model to filter
     def filter(self, update, context):
-        self.wait(update)
-        chat_id = update.message.chat_id
-        response_df, new_model = self.models[chat_id].filter()
-        self.models[chat_id] = new_model
+        if self.is_logged_in(update):
+            self.wait(update)
+            chat_id = update.message.chat_id
+            response_df, new_model = self.models[chat_id].filter()
+            self.models[chat_id] = new_model
 
-        chat_id = update.message.chat_id
-        username = current_users[chat_id]["email"]
-        response_df.to_excel(f"{username}/filtered_reviews.xlsx", index=False)
+            chat_id = update.message.chat_id
+            username = current_users[chat_id]["email"]
+            response_df.to_excel(f"{username}/filtered_reviews.xlsx", index=False)
 
-        
-        with open(f"{username}/filtered_reviews.xlsx", "rb") as response_file:
-            context.bot.send_document(chat_id, response_file)
-        self.thank_user(update)
+            
+            with open(f"{username}/filtered_reviews.xlsx", "rb") as response_file:
+                context.bot.send_document(chat_id, response_file)
+            self.thank_user(update)
+        else:
+            response = "You are currently not logged in, please log in! \n\n/login"
+            update.message.reply_text(response)
 
     # Use Machine Learning Model to conduct CSA
     def retrieve_predictions(self, update, context):
-        self.wait(update)
-        chat_id = update.message.chat_id
-        response_df, new_model = self.models[chat_id].conduct_CSA()
-        self.models[chat_id] = new_model
+        if self.is_logged_in(update):
+            self.wait(update)
+            chat_id = update.message.chat_id
+            response_df, new_model = self.models[chat_id].conduct_CSA()
+            self.models[chat_id] = new_model
 
-        chat_id = update.message.chat_id
-        username = current_users[chat_id]["email"]
-        response_df.to_excel(f"{username}/predicted_reviews.xlsx", index=False)
-        
-        with open(f"{username}/predicted_reviews.xlsx", "rb") as response_file:
-            context.bot.send_document(chat_id, response_file)
-        self.thank_user(update)
+            chat_id = update.message.chat_id
+            username = current_users[chat_id]["email"]
+            response_df.to_excel(f"{username}/predicted_reviews.xlsx", index=False)
+            
+            with open(f"{username}/predicted_reviews.xlsx", "rb") as response_file:
+                context.bot.send_document(chat_id, response_file)
+            self.thank_user(update)
+        else:
+            response = "You are currently not logged in, please log in! \n\n/login"
+            update.message.reply_text(response)
 
     # Sort predicted reviews into good and bad
     def sort_predicted(self, update, context):
-        chat_id = update.message.chat_id
-        predicted_reviews = self.models[chat_id].get_predicted_reviews()
-        if not self.models[chat_id].has_predicted():
-            predicted_reviews, new_model = self.models[chat_id].conduct_CSA()
-            self.models[chat_id] = new_model
-        self.wait(update)
-        good_reviews, bad_reviews = self.models[chat_id].sort_predicted_reviews(predicted_reviews)
+        if self.is_logged_in(update):
+            chat_id = update.message.chat_id
+            predicted_reviews = self.models[chat_id].get_predicted_reviews()
+            if not self.models[chat_id].has_predicted():
+                predicted_reviews, new_model = self.models[chat_id].conduct_CSA()
+                self.models[chat_id] = new_model
+            self.wait(update)
+            good_reviews, bad_reviews = self.models[chat_id].sort_predicted_reviews(predicted_reviews)
 
-        chat_id = update.message.chat_id
-        username = current_users[chat_id]["email"]
-        good_reviews.to_excel(f"{username}/good_reviews.xlsx", index=False)
-        bad_reviews.to_excel(f"{username}/bad_reviews.xlsx", index=False)
-        
-        with open(f"{username}/good_reviews.xlsx", "rb") as response_file:
-            context.bot.send_document(chat_id, response_file)
-        with open(f"{username}/bad_reviews.xlsx", "rb") as response_file:
-            context.bot.send_document(chat_id, response_file)
-        self.thank_user(update)
+            chat_id = update.message.chat_id
+            username = current_users[chat_id]["email"]
+            good_reviews.to_excel(f"{username}/good_reviews.xlsx", index=False)
+            bad_reviews.to_excel(f"{username}/bad_reviews.xlsx", index=False)
+            
+            with open(f"{username}/good_reviews.xlsx", "rb") as response_file:
+                context.bot.send_document(chat_id, response_file)
+            with open(f"{username}/bad_reviews.xlsx", "rb") as response_file:
+                context.bot.send_document(chat_id, response_file)
+            self.thank_user(update)
+        else:
+            response = "You are currently not logged in, please log in! \n\n/login"
+            update.message.reply_text(response)
 
     # Use Machine Learning Model to compile top five words used with the number of times each word is used in reviews 
     # for both positive and negative reviews
     def compile_top_five_words(self, update, context):
-        chat_id = update.message.chat_id
-        self.wait(update)
-        response = ""
-        response_dict, new_model = self.models[chat_id].compile_top_five_words()
-        self.models[chat_id] = new_model
-        response = ""
-        for sentiment, words in response_dict.items():
-            response += (sentiment + ":\n\n") 
-            for word in words:
-                response += (word + "\n")
-            response += "\n\n"
+        if self.is_logged_in(update):
+            chat_id = update.message.chat_id
+            self.wait(update)
+            response = ""
+            response_dict, new_model = self.models[chat_id].compile_top_five_words()
+            self.models[chat_id] = new_model
+            response = ""
+            for sentiment, words in response_dict.items():
+                response += (sentiment + ":\n\n") 
+                for word in words:
+                    response += (word + "\n")
+                response += "\n\n"
 
-        update.message.reply_text(response)
-        self.thank_user(update)
+            update.message.reply_text(response)
+            self.thank_user(update)
+        else:
+            response = "You are currently not logged in, please log in! \n\n/login"
+            update.message.reply_text(response)
 
     # Updates message after successful download of file 
     def choose_catgeory(self, update):
         response = ("Please choose your product category: \n\n" + 
-                    "/general")
+                    "/general" + "\n" + 
+                    "/books" + "\n" + 
+                    "/electronics" + "\n" + 
+                    "/food")
         update.message.reply_text(response)
 
     # Initiates model for general product category 
     def general(self, update, context):
-        self.wait(update)
-        chat_id = update.message.chat_id
-        username = current_users[chat_id]["email"]
-        url = storage.child(f"{username}/Reviews.csv").get_url(None)
-        print("loading model...")
-        self.models[chat_id] = Distilbert(url)
-        self.choose_function(update)
+        if self.is_logged_in(update):
+            self.wait(update)
+            chat_id = update.message.chat_id
+            current_users[chat_id]["model"] = "general"
+            print(f"Current users: {current_users}")
+            username = current_users[chat_id]["email"]
+            url = storage.child(f"{username}/Reviews.csv").get_url(None)
+            print("loading model...")
+            self.models[chat_id] = Distilbert(url, "general")
+            self.choose_function(update)
+        else:
+            response = "You are currently not logged in, please log in! \n\n/login"
+            update.message.reply_text(response)
+
+    # Initiates model for books product category 
+    def books(self, update, context):
+        if self.is_logged_in(update):
+            self.wait(update)
+            chat_id = update.message.chat_id
+            current_users[chat_id]["model"] = "books"
+            print(f"Current users: {current_users}")
+            username = current_users[chat_id]["email"]
+            url = storage.child(f"{username}/Reviews.csv").get_url(None)
+            print("loading model...")
+            self.models[chat_id] = Distilbert(url, "books")
+            self.choose_function(update)
+        else:
+            response = "You are currently not logged in, please log in! \n\n/login"
+            update.message.reply_text(response)
+    
+    # Initiates model for electronics product category 
+    def electronics(self, update, context):
+        if self.is_logged_in(update):
+            self.wait(update)
+            chat_id = update.message.chat_id
+            current_users[chat_id]["model"] = "electronics"
+            print(f"Current users: {current_users}")
+            username = current_users[chat_id]["email"]
+            url = storage.child(f"{username}/Reviews.csv").get_url(None)
+            print("loading model...")
+            self.models[chat_id] = Distilbert(url, "electronics")
+            self.choose_function(update)
+        else:
+            response = "You are currently not logged in, please log in! \n\n/login"
+            update.message.reply_text(response)
+    
+    # Initiates model for food product category 
+    def food(self, update, context):
+        if self.is_logged_in(update):
+            self.wait(update)
+            chat_id = update.message.chat_id
+            current_users[chat_id]["model"] = "food"
+            print(f"Current users: {current_users}")
+            username = current_users[chat_id]["email"]
+            url = storage.child(f"{username}/Reviews.csv").get_url(None)
+            print("loading model...")
+            self.models[chat_id] = Distilbert(url, "food")
+            self.choose_function(update)
+        else:
+            response = "You are currently not logged in, please log in! \n\n/login"
+            update.message.reply_text(response)
 
     # Allows user to choose function
     def choose_function(self, update):
@@ -211,10 +271,13 @@ class ReviewoBot:
 
     # Prompt user to send new set of reviews 
     def use_new_reviews(self, update, context):
-        response = "Please send the new set of reviews"
-        update.message.reply_text(response)
+        if self.is_logged_in(update):
+            response = "Please send the new set of reviews"
+            update.message.reply_text(response)
+        else:
+            response = "You are currently not logged in, please log in! \n\n/login"
+            update.message.reply_text(response)
 
-    ####################################################TO-DO
     # Check if downloaded document is in correct format
     def is_correct_format(self, document):
         file_path = document["file_path"]
@@ -227,62 +290,57 @@ class ReviewoBot:
                 return "Reviews" in df.columns.values.tolist()
         except Exception as e:
             print(e)
-
-    # def do_something(self, user_input):
-    #     answer = "You have wrote me " + user_input
-    #     return answer
-
-    # def reply(self, update, context):
-    #     user_input = update.message.text
-    #     update.message.reply_text(self.do_something(user_input))
-
             
     # Handles all document inputs
     def handle_document(self, update, context):
-        document = context.bot.get_file(update.message.document)
-        self.wait(update)
-        if is_csv(document):
-            try:
-                if self.is_correct_format(document):
-                    chat_id = update.message.chat_id
-                    if chat_id in current_users.keys():
-                        username = current_users[chat_id]["email"]
-                        print(f"username: {username}")
-                        upload_csv(document, username)
-                        response = "File received! Thank you for waiting patiently!"
-                        update.message.reply_text(response)
-                        self.choose_catgeory(update)
+        if self.is_logged_in(update):
+            document = context.bot.get_file(update.message.document)
+            self.wait(update)
+            if is_csv(document):
+                try:
+                    if self.is_correct_format(document):
+                        chat_id = update.message.chat_id
+                        if chat_id in current_users.keys():
+                            username = current_users[chat_id]["email"]
+                            print(f"username: {username}")
+                            upload_csv(document, username)
+                            response = "File received! Thank you for waiting patiently!"
+                            update.message.reply_text(response)
+                            self.choose_catgeory(update)
+                        else:
+                            response = "You have not logged in! Please log in first!\n\n/login"
+                            update.message.reply_text(response)
                     else:
-                        response = "You have not logged in! Please log in first!\n\n/login"
+                        response = "File is not in correct format! Please make sure that the file has a column name 'Reviews' !"
                         update.message.reply_text(response)
-                else:
-                    response = "File is not in correct format! Please make sure that the file has a column name 'Reviews' !"
+                    
+                except FileNotFoundError:
+                    response = "File not received. Please try again!"
                     update.message.reply_text(response)
-                
-            except FileNotFoundError:
-                response = "File not received. Please try again!"
-                update.message.reply_text(response)
-        elif is_xlsx(document):
-            try:
-                if self.is_correct_format(document):
-                    chat_id = update.message.chat_id
-                    if chat_id in current_users.keys():
-                        username = current_users[chat_id]["email"]
-                        print(f"username: {username}")
-                        upload_csv(document, username)
-                        response = "File received! Thank you for waiting patiently!"
-                        update.message.reply_text(response)
-                        self.choose_catgeory(update)
+            elif is_xlsx(document):
+                try:
+                    if self.is_correct_format(document):
+                        chat_id = update.message.chat_id
+                        if chat_id in current_users.keys():
+                            username = current_users[chat_id]["email"]
+                            print(f"username: {username}")
+                            upload_csv(document, username)
+                            response = "File received! Thank you for waiting patiently!"
+                            update.message.reply_text(response)
+                            self.choose_catgeory(update)
+                        else:
+                            response = "You have not logged in! Please log in first!\n\n/login"
+                            update.message.reply_text(response)
                     else:
-                        response = "You have not logged in! Please log in first!\n\n/login"
+                        response = "File is not in correct format! Please make sure that the file has a column name 'Reviews' !"
                         update.message.reply_text(response)
-                else:
-                    response = "File is not in correct format! Please make sure that the file has a column name 'Reviews' !"
+                    
+                except FileNotFoundError:
+                    response = "File not received. Please try again!"
                     update.message.reply_text(response)
-                
-            except FileNotFoundError:
-                response = "File not received. Please try again!"
+            else:
+                response = "File not received. Please ensure that the file is in .csv or .xlsx!"
                 update.message.reply_text(response)
         else:
-            response = "File not received. Please ensure that the file is in .csv or .xlsx!"
+            response = "You are currently not logged in, please log in! \n\n/login"
             update.message.reply_text(response)

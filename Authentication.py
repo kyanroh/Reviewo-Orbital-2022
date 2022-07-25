@@ -1,7 +1,8 @@
-from telegram.ext import Filters, ConversationHandler, CallbackContext, CommandHandler, MessageHandler
+from telegram.ext import Filters, ConversationHandler, CommandHandler, MessageHandler
 from database import auth
 import os
 import shutil
+from requests.exceptions import HTTPError
 
 current_users = {}
 '''{
@@ -61,11 +62,21 @@ class Signup:
             try:
                 auth.create_user_with_email_and_password(current_users[chat_id]['email'], current_users[chat_id]['password'])
                 self.make_path(current_users[chat_id]['email'])
-            except Exception as e:
-                print(e)
+            except HTTPError as e:
+                if "INVALID_EMAIL" in e.args[1]:
+                    response = "Invalid email! Please enter your email again!"
+                    update.message.reply_text(response)
+                elif "EMAIL_EXISTS" in e.args[1]:
+                    response = "Email already exists! Please enter your email again!"
+                    update.message.reply_text(response)
+                elif "WEAK_PASSWORD" in e.args[1]:
+                    response = "Password should be at least 6 characters! Please enter your email again!"
+                    update.message.reply_text(response)
+                else:
+                    print(e.args[1])
+                    response = "Something went wrong! Please enter your email again!"
+                    update.message.reply_text(response)
                 del current_users[chat_id]
-                response = "Email already exists! Please enter your email again!"
-                update.message.reply_text(response)
                 return self.GET_EMAIL_ASK_PASSWORD
 
             response = (f"Created account successfully! You are now logged in as {current_users[chat_id]['email']}!" + 
@@ -140,10 +151,8 @@ class Login:
 
         try:
             auth.sign_in_with_email_and_password(current_users[chat_id]["email"], current_users[chat_id]["password"])
-            # current_users[chat_id]["login_status"] = True
             response = (f"Login Successful! You are now logged in as {current_users[chat_id]['email']}!" + 
-                            "\nPlease send the input files for Customer Sentiment Analysis in a CSV or XLSX file" + "\n\n" + 
-                            "/delete_account")
+                            "\nPlease send the input files for Customer Sentiment Analysis in a CSV or XLSX file")
             print(f"{current_users[chat_id]['email']} logged in!")
             print(f"Current users: {current_users}")
             update.message.reply_text(response)
@@ -152,15 +161,21 @@ class Login:
                 self.make_path(current_users[chat_id]['email'])
 
             return ConversationHandler.END
-        except Exception as e:
-            print(e)
-            response = "Invalid email or password. Please try again!\n\n/login"
-            update.message.reply_text(response)
+        except HTTPError as e:
+            if "INVALID_EMAIL" in e.args[1]:
+                response = "Invalid email! Please enter your email again!"
+                update.message.reply_text(response)
+            elif "INVALID_PASSWORD" in e.args[1]:
+                response = "Invalid password! Please enter your email again!"
+                update.message.reply_text(response)
+            elif "EMAIL_NOT_FOUND" in e.args[1]:
+                response = "Email not found! Please enter your email again!"
+                update.message.reply_text(response)
+            else:
+                print(e.args[1])
+                response = "Something went wrong! Please enter your email again!"
+                update.message.reply_text(response)
             del current_users[chat_id]
-            # if chat_id not in current_users.keys():
-            #     current_users[chat_id] = {"login_status": False}
-            # else:
-            #     current_users[chat_id]["login_status"] = False
             return ConversationHandler.END
 
     def make_path(self, name):

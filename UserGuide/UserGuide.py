@@ -1,6 +1,4 @@
-from requests import request
 from database import storage
-import pandas as pd
 
 class UserGuide:
     def __init__(self, reviewo_bot):
