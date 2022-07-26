@@ -64,20 +64,36 @@ class Signup:
                 self.make_path(current_users[chat_id]['email'])
             except HTTPError as e:
                 if "INVALID_EMAIL" in e.args[1]:
-                    response = "Invalid email! Please enter your email again!"
+                    response = ("Invalid email! Please try again!\n\n" + 
+                                "/login\n" + 
+                                "/signup\n" + 
+                                "/about\n" + 
+                                "/help")
                     update.message.reply_text(response)
                 elif "EMAIL_EXISTS" in e.args[1]:
-                    response = "Email already exists! Please enter your email again!"
+                    response = ("Email already exists! Please try again!\n\n" + 
+                                "/login\n" + 
+                                "/signup\n" + 
+                                "/about\n" + 
+                                "/help")
                     update.message.reply_text(response)
                 elif "WEAK_PASSWORD" in e.args[1]:
-                    response = "Password should be at least 6 characters! Please enter your email again!"
+                    response = ("Password should be at least 6 characters! Please try again!\n\n" + 
+                                "/login\n" + 
+                                "/signup\n" + 
+                                "/about\n" + 
+                                "/help")
                     update.message.reply_text(response)
                 else:
                     print(e.args[1])
-                    response = "Something went wrong! Please enter your email again!"
+                    response = ("Something went wrong! Please try again!\n\n" + 
+                                "/login\n" + 
+                                "/signup\n" + 
+                                "/about\n" + 
+                                "/help")
                     update.message.reply_text(response)
                 del current_users[chat_id]
-                return self.GET_EMAIL_ASK_PASSWORD
+                return ConversationHandler.END
 
             response = (f"Created account successfully! You are now logged in as {current_users[chat_id]['email']}!" + 
                             "Please send the input files for Customer Sentiment Analysis in a CSV or XLSX file")
@@ -86,9 +102,13 @@ class Signup:
             return ConversationHandler.END
         else:
             del current_users[chat_id]
-            response = "Passwords are not the same! Please enter your email again!"
+            response = ("Passwords are not the same! Please try again!\n\n" + 
+                        "/login\n" + 
+                        "/signup\n" + 
+                        "/about\n" + 
+                        "/help")
             update.message.reply_text(response)
-            return self.GET_EMAIL_ASK_PASSWORD 
+            return ConversationHandler.END 
 
     def quit(self):
          return ConversationHandler.END
