@@ -96,7 +96,6 @@ class ReviewoBot:
             username = current_users[chat_id]["email"]
             response_df.to_excel(f"{username}/filtered_reviews.xlsx", index=False)
 
-            
             with open(f"{username}/filtered_reviews.xlsx", "rb") as response_file:
                 context.bot.send_document(chat_id, response_file)
             self.thank_user(update)

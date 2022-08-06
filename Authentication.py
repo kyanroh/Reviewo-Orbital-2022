@@ -183,17 +183,17 @@ class Login:
             return ConversationHandler.END
         except HTTPError as e:
             if "INVALID_EMAIL" in e.args[1]:
-                response = "Invalid email! Please enter your email again!"
+                response = "Invalid email! Please try again! \n\n/login"
                 update.message.reply_text(response)
             elif "INVALID_PASSWORD" in e.args[1]:
-                response = "Invalid password! Please enter your email again!"
+                response = "Invalid password! Please try again! \n\n/login"
                 update.message.reply_text(response)
             elif "EMAIL_NOT_FOUND" in e.args[1]:
-                response = "Email not found! Please enter your email again!"
+                response = "Email not found! Please try again! \n\n/login"
                 update.message.reply_text(response)
             else:
                 print(e.args[1])
-                response = "Something went wrong! Please enter your email again!"
+                response = "Something went wrong! Please try again! \n\n/login"
                 update.message.reply_text(response)
             del current_users[chat_id]
             return ConversationHandler.END
@@ -224,12 +224,10 @@ class Logout:
 
 class DeleteCurrentAccount:
     def __init__(self):
-        self.ASK_PASSWORD = 0
-        self.GET_PASSWORD_DELETE_ACCOUNT = 1
+        self.GET_PASSWORD_DELETE_ACCOUNT = 0
         self.convo_handler = ConversationHandler(
                                 entry_points=[CommandHandler('delete_account', self.check_login_status)],
                                 states={
-                                    self.ASK_PASSWORD : [MessageHandler(Filters.text, callback=self.ask_password)],
                                     self.GET_PASSWORD_DELETE_ACCOUNT: [MessageHandler(Filters.text, callback=self.get_password_delete_account)],
                                     },
                                 fallbacks=[CommandHandler('quit', self.quit)]
@@ -244,16 +242,16 @@ class DeleteCurrentAccount:
         else:
             return True
 
-    def check_login_status(self, update, context):
-        if self.is_logged_in(update):
-            return self.ASK_PASSWORD
-        else:
-            return ConversationHandler.END
-
-    def ask_password(self, update, context):
+    def ask_password(self, update):
         response = "Please enter your password!"
         update.message.reply_text(response)
         return self.GET_PASSWORD_DELETE_ACCOUNT
+
+    def check_login_status(self, update, context):
+        if self.is_logged_in(update):
+            return self.ask_password(update)
+        else:
+            return ConversationHandler.END
 
     def get_password_delete_account(self, update, context):
         chat_id = update.message.chat_id
@@ -272,7 +270,7 @@ class DeleteCurrentAccount:
             return ConversationHandler.END
         else:
             response = "Wrong password! Failed to delete account!"
-            update.message_reply_text(response)
+            update.message.reply_text(response)
             return ConversationHandler.END
 
     def quit(self):

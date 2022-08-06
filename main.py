@@ -32,6 +32,7 @@ def main():
     login = Login()
     signup = Signup()
     logout = Logout()
+    # delete = DeleteCurrentAccount()
 
     # Command Handlers for authentication
     dp.add_handler(login.convo_handler)
